@@ -6,7 +6,7 @@ const Admin = require('../models/Admin');
 const generateToken = (id) =>
   jwt.sign({ id }, process.env.JWT_SECRET, { expiresIn: process.env.JWT_EXPIRE || '7d' });
 
-// POST /api/auth/register
+
 exports.register = async (req, res) => {
   try {
     const { username, email, password, role } = req.body;

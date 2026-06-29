@@ -1,124 +1,220 @@
 // config/mailer.js
-const nodemailer = require('nodemailer');
+
+const nodemailer = require("nodemailer");
+
+/**
+ * Escape HTML to prevent XSS in email
+ */
+const escapeHtml = (text = "") =>
+  String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 
 const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || 'smtp.gmail.com',
-  port: parseInt(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === 'true', // true for 465, false for 587
+  host: process.env.SMTP_HOST,
+  port: Number(process.env.SMTP_PORT || 465),
+
+  // true => 465
+  // false => 587
+  secure: process.env.SMTP_SECURE === "true",
+
   auth: {
     user: process.env.SMTP_USER,
     pass: process.env.SMTP_PASS,
   },
+
+  connectionTimeout: 30000,
+  greetingTimeout: 30000,
+  socketTimeout: 30000,
+
   tls: {
     rejectUnauthorized: false,
   },
 });
 
 /**
- * Verify SMTP connection on startup
+ * Verify SMTP
  */
 const verifyMailer = async () => {
   try {
     await transporter.verify();
-    console.log('✅ SMTP Mailer Ready');
+
+    console.log("====================================");
+    console.log("✅ SMTP Connected Successfully");
+    console.log("Host :", process.env.SMTP_HOST);
+    console.log("Port :", process.env.SMTP_PORT);
+    console.log("User :", process.env.SMTP_USER);
+    console.log("====================================");
   } catch (err) {
-    console.warn('⚠️  SMTP not configured:', err.message);
+    console.error("====================================");
+    console.error("❌ SMTP Connection Failed");
+    console.error(err);
+    console.error("====================================");
   }
 };
 
 /**
- * Send contact form notification email
+ * Contact Form
  */
-const sendContactEmail = async ({ name, phone, email, message }) => {
-  const fromLabel = `"${process.env.SMTP_FROM_NAME || 'Sami Medicals'}" <${process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER}>`;
-  const toEmail  = process.env.CONTACT_RECEIVER_EMAIL || process.env.SMTP_USER;
+const sendContactEmail = async ({
+  name,
+  phone,
+  email,
+  message,
+}) => {
+  const safeName = escapeHtml(name);
+  const safePhone = escapeHtml(phone);
+  const safeEmail = escapeHtml(email);
+  const safeMessage = escapeHtml(message).replace(/\n/g, "<br>");
 
-  // ── Email to admin ──────────────────────────────────────────────────────────
-  const adminMailOptions = {
+  const fromLabel = `"${process.env.SMTP_FROM_NAME || "Sami Medicals"}" <${
+    process.env.SMTP_FROM_EMAIL || process.env.SMTP_USER
+  }>`;
+
+  const adminEmail =
+    process.env.CONTACT_RECEIVER_EMAIL ||
+    process.env.SMTP_USER;
+
+  /**
+   * ADMIN EMAIL
+   */
+
+  const adminMail = {
     from: fromLabel,
-    to: toEmail,
-    subject: `📩 New Contact Form Submission – ${name}`,
+
+    to: adminEmail,
+
+    replyTo: email || process.env.SMTP_USER,
+
+    subject: `📩 New Contact Form Submission - ${safeName}`,
+
     html: `
-      <div style="font-family:'Poppins',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-        
-        <div style="background:linear-gradient(135deg,#C8000A,#8B0000);padding:30px 40px;text-align:center;">
-          <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:2px;text-transform:uppercase;">Sami Medicals</h1>
-          <p style="color:rgba(255,255,255,0.8);margin:4px 0 0;font-size:12px;letter-spacing:1px;">New Contact Form Submission</p>
-        </div>
-        
-        <div style="padding:36px 40px;">
-          <table style="width:100%;border-collapse:collapse;">
-            <tr>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;width:30%;">
-                <span style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Name</span>
-              </td>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:14px;font-weight:600;color:#111827;">${name}</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Phone</span>
-              </td>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:14px;font-weight:600;color:#111827;">${phone || 'Not provided'}</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Email</span>
-              </td>
-              <td style="padding:10px 0;border-bottom:1px solid #f3f4f6;">
-                <span style="font-size:14px;font-weight:600;color:#111827;">${email || 'Not provided'}</span>
-              </td>
-            </tr>
-            <tr>
-              <td style="padding:16px 0 0;" colspan="2">
-                <span style="font-size:11px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:1px;">Message</span>
-                <div style="margin-top:10px;padding:16px;background:#f9fafb;border-left:3px solid #C8000A;border-radius:4px;">
-                  <p style="margin:0;font-size:14px;color:#374151;line-height:1.6;">${message}</p>
-                </div>
-              </td>
-            </tr>
-          </table>
-        </div>
-        
-        <div style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-          <p style="margin:0;font-size:11px;color:#9ca3af;">This email was sent from the Sami Medicals website contact form.</p>
-        </div>
-      </div>
-    `,
+<div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;">
+
+<div style="background:#C8000A;color:#fff;padding:25px;text-align:center;">
+<h2>Sami Medicals</h2>
+<p>New Contact Form Submission</p>
+</div>
+
+<div style="padding:30px;">
+
+<table style="width:100%;border-collapse:collapse;">
+
+<tr>
+<td style="padding:10px;font-weight:bold;width:130px;">Name</td>
+<td style="padding:10px;">${safeName}</td>
+</tr>
+
+<tr>
+<td style="padding:10px;font-weight:bold;">Phone</td>
+<td style="padding:10px;">${safePhone || "-"}</td>
+</tr>
+
+<tr>
+<td style="padding:10px;font-weight:bold;">Email</td>
+<td style="padding:10px;">${safeEmail || "-"}</td>
+</tr>
+
+<tr>
+<td style="padding:10px;font-weight:bold;">Message</td>
+<td style="padding:10px;">
+${safeMessage}
+</td>
+</tr>
+
+</table>
+
+</div>
+
+<div style="background:#f5f5f5;padding:20px;text-align:center;font-size:12px;">
+Generated automatically from Sami Medicals Website
+</div>
+
+</div>
+`,
   };
 
-  // ── Auto-reply to visitor (only if they provided email) ────────────────────
+  /**
+   * AUTO REPLY
+   */
+
   let autoReply = null;
+
   if (email) {
     autoReply = {
       from: fromLabel,
+
       to: email,
-      subject: 'Thank you for contacting Sami Medicals 🙏',
+
+      subject: "Thank you for contacting Sami Medicals",
+
       html: `
-        <div style="font-family:'Poppins',Arial,sans-serif;max-width:600px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #e5e7eb;">
-          <div style="background:linear-gradient(135deg,#C8000A,#8B0000);padding:30px 40px;text-align:center;">
-            <h1 style="color:#fff;margin:0;font-size:22px;letter-spacing:2px;text-transform:uppercase;">Sami Medicals</h1>
-          </div>
-          <div style="padding:36px 40px;">
-            <p style="font-size:15px;color:#111827;">Dear <strong>${name}</strong>,</p>
-            <p style="font-size:14px;color:#374151;line-height:1.7;">Thank you for reaching out to us! We have received your message and our team will get back to you shortly.</p>
-            <p style="font-size:14px;color:#374151;line-height:1.7;">For urgent queries, feel free to call us at <strong>+91 94423 34527</strong> or WhatsApp us.</p>
-            <p style="font-size:14px;color:#374151;">Warm regards,<br/><strong style="color:#C8000A;">Sami Medicals Team</strong></p>
-          </div>
-          <div style="background:#f9fafb;padding:20px 40px;text-align:center;border-top:1px solid #e5e7eb;">
-            <p style="margin:0;font-size:11px;color:#9ca3af;">Karaikudi, Tamil Nadu | +91 94423 34527</p>
-          </div>
-        </div>
-      `,
+<div style="font-family:Arial,sans-serif;max-width:650px;margin:auto;border:1px solid #ddd;border-radius:10px;overflow:hidden;">
+
+<div style="background:#C8000A;color:white;padding:30px;text-align:center;">
+<h2>Sami Medicals</h2>
+</div>
+
+<div style="padding:30px;">
+
+<p>Hello <b>${safeName}</b>,</p>
+
+<p>
+Thank you for contacting Sami Medicals.
+</p>
+
+<p>
+We have received your enquiry successfully.
+</p>
+
+<p>
+Our team will contact you shortly.
+</p>
+
+<br>
+
+<p>
+Regards,<br>
+<b>Sami Medicals Team</b>
+</p>
+
+</div>
+
+<div style="background:#f5f5f5;padding:20px;text-align:center;">
+Karaikudi, Tamil Nadu<br>
+📞 +91 94423 34527
+</div>
+
+</div>
+`,
     };
   }
 
-  // Send both
-  await transporter.sendMail(adminMailOptions);
-  if (autoReply) await transporter.sendMail(autoReply);
+  try {
+    await transporter.sendMail(adminMail);
+
+    console.log("✅ Admin Email Sent");
+
+    if (autoReply) {
+      await transporter.sendMail(autoReply);
+
+      console.log("✅ Auto Reply Sent");
+    }
+
+    return true;
+  } catch (err) {
+    console.error("❌ Email Send Failed");
+    console.error(err);
+
+    throw err;
+  }
 };
 
-module.exports = { transporter, verifyMailer, sendContactEmail };
+module.exports = {
+  transporter,
+  verifyMailer,
+  sendContactEmail,
+};

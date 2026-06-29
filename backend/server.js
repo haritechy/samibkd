@@ -95,12 +95,12 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 5000;
 
 const boot = async () => {
-  await connectDB(); // டேட்டாபேஸ் கனெக்ஷன்
+  await connectDB(); 
   
-  // டேட்டாபேஸ் கனெக்ட் ஆன பிறகு அட்மின் அக்கவுண்ட்டை செக் செய்து உருவாக்குகிறது
+
   await seedDefaultAdmin(); 
   
-  verifyMailer(); // fire-and-forget, don't block startup
+  verifyMailer(); 
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📍 Environment: ${process.env.NODE_ENV || 'development'}`);
