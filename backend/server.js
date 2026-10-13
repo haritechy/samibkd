@@ -63,7 +63,7 @@ const seedDefaultAdmin = async () => {
       await Admin.create({
         username: 'admin',
         email: defaultEmail,
-        password: 'Admin@123',
+        password: 'Sami@045650',
         role: 'admin',
         isActive: true
       });

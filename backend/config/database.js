@@ -28,7 +28,7 @@ const connectDB = async () => {
     await sequelize.authenticate();
     console.log('✅ MySQL Connected Successfully');
     // Sync all models (alter: true updates columns without dropping data)
-    await sequelize.sync({ alter: true });
+    await sequelize.sync();
     console.log('✅ Database tables synced');
   } catch (error) {
     console.error('❌ MySQL Connection Error:', error.message);
